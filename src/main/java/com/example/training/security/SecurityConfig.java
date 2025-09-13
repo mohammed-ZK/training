@@ -7,6 +7,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -17,14 +19,19 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
     @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(); // يقوم بتشفير كلمات المرور
+    }
+
+    @Bean
     public UserDetailsService userDetailsService() {
         UserDetails user = User.withUsername("mohamed")
-                .password("{noop}1234") // كلمة المرور بدون تشفير (noop = no operation)
+                .password(passwordEncoder().encode("{noop}1234")) // كلمة المرور بدون تشفير (noop = no operation)
                 .roles("USER")
                 .build();
 
         UserDetails admin = User.withUsername("admin")
-                .password("{noop}admin123")
+                .password(passwordEncoder().encode("{noop}admin123"))
                 .roles("ADMIN")
                 .build();
 
