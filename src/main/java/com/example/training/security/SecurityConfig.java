@@ -2,54 +2,47 @@ package com.example.training.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); // يقوم بتشفير كلمات المرور
+    private final UserDetailsService userDetailsService;
+
+    public SecurityConfig(UserDetailsService userDetailsService) {
+        this.userDetailsService = userDetailsService;
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        UserDetails user = User.withUsername("mohamed")
-                .password(passwordEncoder().encode("{noop}1234")) // كلمة المرور بدون تشفير (noop = no operation)
-                .roles("USER")
-                .build();
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-        UserDetails admin = User.withUsername("admin")
-                .password(passwordEncoder().encode("{noop}admin123"))
-                .roles("ADMIN")
-                .build();
-
-        return new InMemoryUserDetailsManager(user, admin);
+    // AuthenticationManager standard retrieval
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable()) // تعطيل CSRF مؤقتًا للـ REST API
+        return http
+                .csrf(csrf -> csrf.disable()) // للـ REST APIs عادة نُعطّل CSRF؛ عدّل حسب نوع التطبيق
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/public").permitAll()   // API مفتوح للجميع
-                        .requestMatchers("/api/user").hasRole("USER") // يجب أن يكون USER
-                        .requestMatchers("/api/admin").hasRole("ADMIN") // يجب أن يكون ADMIN
-                        .anyRequest().authenticated() // باقي الطلبات تحتاج تسجيل دخول
+                        .requestMatchers("/auth/register", "/public/**").permitAll()
+                        .requestMatchers("/auth/migrate-passwords").hasRole("ADMIN")
+                        .anyRequest().authenticated()
                 )
-                .formLogin(withDefaults()); // استخدام شاشة Login افتراضية
-
-        return http.build();
+                .httpBasic(Customizer.withDefaults()) // أو formLogin() حسب حاجتك
+                .build();
     }
 }
